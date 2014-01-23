@@ -3,7 +3,7 @@
   "description": "Enable server-side reactivity",
   "homepage": "https://github.com/Diggsey/meteor-server-deps",
   "author": "Diggory Blake",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "git": "https://github.com/Diggsey/meteor-server-deps.git",
   "packages": {
   }
