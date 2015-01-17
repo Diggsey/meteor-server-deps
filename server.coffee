@@ -1,15 +1,15 @@
-# External code can't access this, and so won't be able to directly construct a Deps.Computation instance
+# External code can't access this, and so won't be able to directly construct a Tracker.Computation instance
 privateObj = {}
 nextId = 1
 afterFlushCallbacks = []
 queue = new Meteor._SynchronousQueue()
 
-_.extend Deps,
+_.extend Tracker,
 	currentComputationVar: new Meteor.EnvironmentVariable()
 	
 	flush: ->
 		if not queue.safeToRunTask()
-			throw new Error("Can't call Deps.flush while flushing, or inside Deps.autorun")
+			throw new Error("Can't call Tracker.flush while flushing, or inside Tracker.autorun")
 		
 		queue.drain()
 			
@@ -19,50 +19,50 @@ _.extend Deps,
 			try
 				f()
 			catch e
-				console.log "Exception from Deps afterFlush function:", e.stack || e.message
+				console.log "Exception from Tracker afterFlush function:", e.stack || e.message
 	
 	autorun: (f) ->
-		c = new Deps.Computation(f, Deps.currentComputation, privateObj)
+		c = new Tracker.Computation(f, Tracker.currentComputation, privateObj)
 		
-		if Deps.active
-			Deps.onInvalidate -> c.stop()
+		if Tracker.active
+			Tracker.onInvalidate -> c.stop()
 			
 		c
 	
 	nonreactive: (f) ->
-		Deps.currentComputationVar.withValue null, f
+		Tracker.currentComputationVar.withValue null, f
 	
 	_makeNonreactive: (f) ->
 		if f.$isNonreactive
 			return f
 		result = (args...) ->
-			Deps.nonreactive =>
+			Tracker.nonreactive =>
 				f.apply(@, args)
 		result.$isNonreactive = true
 		result
 	
 	onInvalidate: (f) ->
-		if not Deps.active
-			throw new Error("Deps.onInvalidate requires a currentComputation")
+		if not Tracker.active
+			throw new Error("Tracker.onInvalidate requires a currentComputation")
 			
-		Deps.currentComputation.onInvalidate(f)
+		Tracker.currentComputation.onInvalidate(f)
 		
 	afterFlush: (f) ->
 		afterFlushCallbacks.push(f)
 
-# Compatibility with client-side Deps
-Object.defineProperties Deps,
+# Compatibility with client-side Tracker
+Object.defineProperties Tracker,
 	currentComputation:
 		get: ->
-			Deps.currentComputationVar.get()
+			Tracker.currentComputationVar.get()
 	active:
 		get: ->
-			!!Deps.currentComputationVar.get()
+			!!Tracker.currentComputationVar.get()
 
-class Deps.Computation
+class Tracker.Computation
 	constructor: (f, @_parent, p)->
 		if p != privateObj
-			throw new Error("Deps.Computation constructor is private; use Deps.autorun")
+			throw new Error("Tracker.Computation constructor is private; use Tracker.autorun")
 		
 		@stopped = false
 		@invalidated = false
@@ -71,7 +71,7 @@ class Deps.Computation
 		@_onInvalidateCallbacks = []
 		@_recomputing = false
 		
-		Deps.currentComputationVar.withValue @, =>
+		Tracker.currentComputationVar.withValue @, =>
 			@_func = Meteor.bindEnvironment(f, null, @)
 		
 		errored = true
@@ -87,7 +87,7 @@ class Deps.Computation
 		if typeof f != "function"
 			throw new Error("onInvalidate requires a function")
 		
-		f = Deps._makeNonreactive(Meteor.bindEnvironment(f, null, @))
+		f = Tracker._makeNonreactive(Meteor.bindEnvironment(f, null, @))
 		
 		if @invalidated
 			f()
@@ -99,7 +99,7 @@ class Deps.Computation
 			if not @_recomputing and not @stopped
 				queue.queueTask =>
 					@._recompute()
-					Deps._postRun()
+					Tracker._postRun()
 			
 			@invalidated = true
 			
@@ -125,11 +125,11 @@ class Deps.Computation
 				console.log e
 		@_recomputing = false
 		
-class Deps.Dependency
+class Tracker.Dependency
 	constructor: ->
 		@_dependentsById = {}
 	
-	depend: (computation = Deps.currentComputation) ->
+	depend: (computation = Tracker.currentComputation) ->
 		if not computation
 			return false
 		
