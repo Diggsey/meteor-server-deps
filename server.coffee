@@ -25,7 +25,8 @@ _.extend Tracker,
     c = new Tracker.Computation(f, Tracker.currentComputation, privateObj)
 
     if Tracker.active
-      Tracker.onInvalidate -> c.stop()
+      Tracker.onInvalidate ->
+        c.stop()
 
     c
 
@@ -50,11 +51,12 @@ _.extend Tracker,
   afterFlush: (f) ->
     afterFlushCallbacks.push(f)
 
-# Compatibility with client-side Tracker
+# Compatibility with the client-side Tracker. On node.js we can use defineProperties to define getters.
 Object.defineProperties Tracker,
   currentComputation:
     get: ->
       Tracker._currentComputation.get()
+
   active:
     get: ->
       !!Tracker._currentComputation.get()
@@ -129,18 +131,19 @@ class Tracker.Dependency
   constructor: ->
     @_dependentsById = {}
 
-  depend: (computation = Tracker.currentComputation) ->
-    if not computation
-      return false
+  depend: (computation) ->
+    unless computation
+      return false unless Tracker.currentComputation
+      computation = Tracker.currentComputation
 
     id = computation._id
 
-    if not (id of @_dependentsById)
+    if id not of @_dependentsById
       @_dependentsById[id] = computation
       computation.onInvalidate =>
         delete @_dependentsById[id]
-
       return true
+
     false
 
   changed: ->
