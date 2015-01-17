@@ -1,5 +1,8 @@
-# External code can't access this, and so won't be able to directly construct a Tracker.Computation instance
+# Tracker.Computation constructor is private, so we are using this object as a guard.
+# External code cannot access this, and will not be able to directly construct a
+# Tracker.Computation instance.
 privateObject = {}
+
 nextId = 1
 afterFlushCallbacks = []
 queue = new Meteor._SynchronousQueue()
@@ -24,7 +27,7 @@ _.extend Tracker,
   autorun: (f) ->
     throw new Error 'Tracker.autorun requires a function argument' unless typeof f is 'function'
 
-    c = new Tracker.Computation(f, Tracker.currentComputation, privateObject)
+    c = new Tracker.Computation f, Tracker.currentComputation, privateObject
 
     if Tracker.active
       Tracker.onInvalidate ->
@@ -64,8 +67,8 @@ Object.defineProperties Tracker,
       !!Tracker._currentComputation.get()
 
 class Tracker.Computation
-  constructor: (f, @_parent, private) ->
-    throw new Error "Tracker.Computation constructor is private; use Tracker.autorun" if private isnt privateObject
+  constructor: (f, @_parent, _private) ->
+    throw new Error "Tracker.Computation constructor is private; use Tracker.autorun" if _private isnt privateObject
 
     @stopped = false
     @invalidated = false
