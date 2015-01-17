@@ -4,25 +4,75 @@
 privateObject = {}
 
 nextId = 1
-afterFlushCallbacks = []
+willFlush = false
+inFlush = false
+inCompute = false
+firstError = false
+throwFirstError = false
 queue = new Meteor._SynchronousQueue()
+afterFlushCallbacks = []
+
+# Copied from tracker.js.
+_debugFunc = ->
+  return Meteor._debug if Meteor?._debug
+
+  if console?.log
+    return ->
+      console.log.apply console, arguments
+
+  return ->
+
+# Copied from tracker.js, but it stores the first error if throwFirstError is set.
+_throwOrLog = (from, error) ->
+  if throwFirstError
+    firstError = error
+    throwFirstError = false
+  else
+    messageAndStack = undefined
+    if error.stack and error.message
+      idx = error.stack.indexOf error.message
+      if idx >= 0 and idx <= 10
+        messageAndStack = error.stack
+      else
+        messageAndStack = error.message + (if error.stack.charAt(0) is '\n' then '' else '\n') + error.stack
+    else
+      messageAndStack = error.stack or error.message
+
+    _debugFunc() "Exception from Tracker " + from + " function:", messageAndStack
 
 _.extend Tracker,
   _currentComputation: new Meteor.EnvironmentVariable()
 
-  flush: ->
-    if not queue.safeToRunTask()
-      throw new Error("Can't call Tracker.flush while flushing, or inside Tracker.autorun")
+  flush: (_options) ->
+    throw new Error "Can't call Tracker.flush while flushing" if inFlush or queue._draining
 
-    queue.drain()
+    throw new Error "Can't flush inside Tracker.autorun" if inCompute or not queue.safeToRunTask()
 
-  _postRun: ->
-    while (queue._taskHandles.length == 0) and (afterFlushCallbacks.length > 0)
-      f = afterFlushCallbacks.shift()
-      try
-        f()
-      catch e
-        console.log "Exception from Tracker afterFlush function:", e.stack || e.message
+    inFlush = true
+    willFlush = true
+    firstError = null
+    throwFirstError = !!_options?._throwFirstError
+
+    try
+      while not _.isEmpty(queue._taskHandles) or afterFlushCallbacks.length
+        queue.drain()
+
+        if afterFlushCallbacks.length
+          func = afterFlushCallbacks.shift()
+          try
+            func()
+          catch error
+            _throwOrLog "afterFlush", error
+
+      # If throwFirstError is set, only the first error is stored away, and
+      # the rest is still flushed, with potential future errors going to the log.
+      # This matches the behavior of the client-side Tracker, but the approach
+      # is different. No recursive calls to the flush.
+      throw firstError if firstError
+    finally
+      firstError = null
+      willFlush = false
+      inFlush = false
 
   autorun: (f) ->
     throw new Error 'Tracker.autorun requires a function argument' unless typeof f is 'function'
@@ -38,15 +88,6 @@ _.extend Tracker,
   nonreactive: (f) ->
     Tracker._currentComputation.withValue null, f
 
-  _makeNonreactive: (f) ->
-    if f.$isNonreactive
-      return f
-    result = (args...) ->
-      Tracker.nonreactive =>
-        f.apply(@, args)
-    result.$isNonreactive = true
-    result
-
   onInvalidate: (f) ->
     throw new Error "Tracker.onInvalidate requires a currentComputation" unless Tracker.active
 
@@ -59,7 +100,9 @@ _.extend Tracker,
 Object.defineProperties Tracker,
   currentComputation:
     get: ->
-      Tracker._currentComputation.get()
+      # We want to make sure we are returning null and not
+      # undefined if there is no current computation.
+      Tracker._currentComputation.get() or null
 
   active:
     get: ->
@@ -76,8 +119,12 @@ class Tracker.Computation
     @_onInvalidateCallbacks = []
     @_recomputing = false
 
+    onException = (error) =>
+      throw error if @firstRun
+      _throwOrLog "recompute", error
+
     Tracker._currentComputation.withValue @, =>
-      @_func = Meteor.bindEnvironment f, null, @
+      @_func = Meteor.bindEnvironment f, onException, @
 
     errored = true
     try
@@ -90,10 +137,9 @@ class Tracker.Computation
   onInvalidate: (f) ->
     throw new Error "onInvalidate requires a function" unless typeof f is 'function'
 
-    f = Tracker._makeNonreactive(Meteor.bindEnvironment(f, null, @))
-
     if @invalidated
-      f()
+      Tracker.nonreactive =>
+        f @
     else
       @_onInvalidateCallbacks.push f
 
@@ -102,12 +148,12 @@ class Tracker.Computation
       if not @_recomputing and not @stopped
         queue.queueTask =>
           @_recompute()
-          Tracker._postRun()
 
       @invalidated = true
 
       for callback in @_onInvalidateCallbacks
-        callback()
+        Tracker.nonreactive =>
+          callback @
       @_onInvalidateCallbacks = []
 
   stop: ->
@@ -117,15 +163,16 @@ class Tracker.Computation
 
   _compute: ->
     @invalidated = false
-    @_func @
+    inCompute = true
+    try
+      @_func @
+    finally
+      inCompute = false
 
   _recompute: ->
     @_recomputing = true
     while @invalidated and not @stopped
-      try
-        @._compute()
-      catch e
-        console.log e
+      @_compute()
     @_recomputing = false
 
 class Tracker.Dependency
