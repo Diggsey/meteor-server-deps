@@ -13,3 +13,10 @@ Package.on_use(function (api) {
     'server.coffee'
   ], 'server');
 });
+
+Package.on_test(function (api) {
+  api.use(['peerlibrary:server-autorun', 'tinytest', 'test-helpers'], ['client', 'server']);
+  api.add_files([
+    'meteor/packages/tracker/tracker_tests.js'
+  ], ['client', 'server']);
+});
