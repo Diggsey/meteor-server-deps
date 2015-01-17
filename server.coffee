@@ -5,7 +5,7 @@ afterFlushCallbacks = []
 queue = new Meteor._SynchronousQueue()
 
 _.extend Tracker,
-  currentComputationVar: new Meteor.EnvironmentVariable()
+  _currentComputation: new Meteor.EnvironmentVariable()
 
   flush: ->
     if not queue.safeToRunTask()
@@ -30,7 +30,7 @@ _.extend Tracker,
     c
 
   nonreactive: (f) ->
-    Tracker.currentComputationVar.withValue null, f
+    Tracker._currentComputation.withValue null, f
 
   _makeNonreactive: (f) ->
     if f.$isNonreactive
@@ -54,10 +54,10 @@ _.extend Tracker,
 Object.defineProperties Tracker,
   currentComputation:
     get: ->
-      Tracker.currentComputationVar.get()
+      Tracker._currentComputation.get()
   active:
     get: ->
-      !!Tracker.currentComputationVar.get()
+      !!Tracker._currentComputation.get()
 
 class Tracker.Computation
   constructor: (f, @_parent, p)->
@@ -71,7 +71,7 @@ class Tracker.Computation
     @_onInvalidateCallbacks = []
     @_recomputing = false
 
-    Tracker.currentComputationVar.withValue @, =>
+    Tracker._currentComputation.withValue @, =>
       @_func = Meteor.bindEnvironment(f, null, @)
 
     errored = true
