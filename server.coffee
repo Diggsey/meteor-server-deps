@@ -1,5 +1,5 @@
 # External code can't access this, and so won't be able to directly construct a Tracker.Computation instance
-privateObj = {}
+privateObject = {}
 nextId = 1
 afterFlushCallbacks = []
 queue = new Meteor._SynchronousQueue()
@@ -24,7 +24,7 @@ _.extend Tracker,
   autorun: (f) ->
     throw new Error 'Tracker.autorun requires a function argument' unless typeof f is 'function'
 
-    c = new Tracker.Computation(f, Tracker.currentComputation, privateObj)
+    c = new Tracker.Computation(f, Tracker.currentComputation, privateObject)
 
     if Tracker.active
       Tracker.onInvalidate ->
@@ -51,7 +51,7 @@ _.extend Tracker,
     Tracker.currentComputation.onInvalidate(f)
 
   afterFlush: (f) ->
-    afterFlushCallbacks.push(f)
+    afterFlushCallbacks.push f
 
 # Compatibility with the client-side Tracker. On node.js we can use defineProperties to define getters.
 Object.defineProperties Tracker,
@@ -64,9 +64,8 @@ Object.defineProperties Tracker,
       !!Tracker._currentComputation.get()
 
 class Tracker.Computation
-  constructor: (f, @_parent, p)->
-    if p != privateObj
-      throw new Error("Tracker.Computation constructor is private; use Tracker.autorun")
+  constructor: (f, @_parent, private) ->
+    throw new Error "Tracker.Computation constructor is private; use Tracker.autorun" if private isnt privateObject
 
     @stopped = false
     @invalidated = false
@@ -76,20 +75,18 @@ class Tracker.Computation
     @_recomputing = false
 
     Tracker._currentComputation.withValue @, =>
-      @_func = Meteor.bindEnvironment(f, null, @)
+      @_func = Meteor.bindEnvironment f, null, @
 
     errored = true
     try
-      @._compute()
+      @_compute()
       errored = false
     finally
       @firstRun = false
-      if errored
-        @stop()
+      @stop() if errored
 
   onInvalidate: (f) ->
-    if typeof f != "function"
-      throw new Error("onInvalidate requires a function")
+    throw new Error "onInvalidate requires a function" unless typeof f is 'function'
 
     f = Tracker._makeNonreactive(Meteor.bindEnvironment(f, null, @))
 
@@ -102,7 +99,7 @@ class Tracker.Computation
     if not @invalidated
       if not @_recomputing and not @stopped
         queue.queueTask =>
-          @._recompute()
+          @_recompute()
           Tracker._postRun()
 
       @invalidated = true
