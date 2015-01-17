@@ -22,6 +22,8 @@ _.extend Tracker,
         console.log "Exception from Tracker afterFlush function:", e.stack || e.message
 
   autorun: (f) ->
+    throw new Error 'Tracker.autorun requires a function argument' unless typeof f is 'function'
+
     c = new Tracker.Computation(f, Tracker.currentComputation, privateObj)
 
     if Tracker.active
