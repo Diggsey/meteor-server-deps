@@ -48,8 +48,7 @@ _.extend Tracker,
     result
 
   onInvalidate: (f) ->
-    if not Tracker.active
-      throw new Error("Tracker.onInvalidate requires a currentComputation")
+    throw new Error "Tracker.onInvalidate requires a currentComputation" unless Tracker.active
 
     Tracker.currentComputation.onInvalidate(f)
 
@@ -96,7 +95,7 @@ class Tracker.Computation
     if @invalidated
       f()
     else
-      @_onInvalidateCallbacks.push(f)
+      @_onInvalidateCallbacks.push f
 
   invalidate: ->
     if not @invalidated
@@ -118,7 +117,7 @@ class Tracker.Computation
 
   _compute: ->
     @invalidated = false
-    @._func(@)
+    @_func @
 
   _recompute: ->
     @_recomputing = true
