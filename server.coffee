@@ -40,11 +40,23 @@ _throwOrLog = (from, error) ->
 
     _debugFunc() "Exception from Tracker " + from + " function:", messageAndStack
 
+requireFlush = ->
+  return if willFlush
+
+  Meteor.defer ->
+    Tracker.flush _requireFlush: true
+  willFlush = true
+
 _.extend Tracker,
   _currentComputation: new Meteor.EnvironmentVariable()
 
   flush: (_options) ->
-    throw new Error "Can't call Tracker.flush while flushing" if inFlush or queue._draining
+    if inFlush or queue._draining
+      # We ignore flushes which come from requireFlush if they
+      # are while some other flush is in progress.
+      return if _options?._requireFlush
+
+      throw new Error "Can't call Tracker.flush while flushing"
 
     throw new Error "Can't flush inside Tracker.autorun" if inCompute or not queue.safeToRunTask()
 
@@ -95,6 +107,7 @@ _.extend Tracker,
 
   afterFlush: (f) ->
     afterFlushCallbacks.push f
+    requireFlush()
 
 # Compatibility with the client-side Tracker. On node.js we can use defineProperties to define getters.
 Object.defineProperties Tracker,
@@ -146,6 +159,7 @@ class Tracker.Computation
   invalidate: ->
     if not @invalidated
       if not @_recomputing and not @stopped
+        requireFlush()
         queue.queueTask =>
           @_recompute()
 
