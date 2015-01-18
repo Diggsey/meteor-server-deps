@@ -15,8 +15,9 @@ Package.on_use(function (api) {
 });
 
 Package.on_test(function (api) {
-  api.use(['peerlibrary:server-autorun', 'tinytest', 'test-helpers'], ['client', 'server']);
+  api.use(['peerlibrary:server-autorun', 'tinytest', 'test-helpers', 'coffeescript', 'mongo', 'reactive-var'], ['client', 'server']);
   api.add_files([
-    'meteor/packages/tracker/tracker_tests.js'
+    'meteor/packages/tracker/tracker_tests.js',
+    'tests.coffee'
   ], ['client', 'server']);
 });
