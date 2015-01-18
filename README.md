@@ -13,6 +13,13 @@ Adding this package to your [Meteor](http://www.meteor.com/) application will ov
 
 Server side only.
 
+Installation
+------------
+
+```
+meteor add peerlibrary:server-autorun
+```
+
 Acknowledgments
 ---------------
 
