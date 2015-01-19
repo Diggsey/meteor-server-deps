@@ -68,3 +68,37 @@ Tinytest.add "tracker - queries", (test) ->
   finally
     for computation in computations
       computation.stop()
+
+Tinytest.add "tracker - local queries", (test) ->
+  return
+
+  localCollection = new Mongo.Collection null
+
+  try
+    computations = []
+    variable = new ReactiveVar 0
+
+    runs = []
+
+    computations.push Tracker.autorun ->
+      localCollection.insert variable: variable.get()
+
+    computations.push Tracker.autorun ->
+      # Minimongo is reactive both on the client and server.
+      runs.push localCollection.findOne({})?.variable
+      localCollection.remove {}
+
+    variable.set 1
+    Tracker.flush()
+
+    variable.set 1
+    Tracker.flush()
+
+    variable.set 2
+    Tracker.flush()
+
+    test.equal runs, [0, undefined, 1, undefined, 2, undefined]
+
+  finally
+    for computation in computations
+      computation.stop()

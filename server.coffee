@@ -58,7 +58,12 @@ _.extend Tracker,
 
       throw new Error "Can't call Tracker.flush while flushing"
 
-    throw new Error "Can't flush inside Tracker.autorun" if inCompute or not queue.safeToRunTask()
+    if inCompute or not queue.safeToRunTask()
+      # We ignore flushes which come from requireFlush if they
+      # are while some other flush is in progress.
+      return if _options?._requireFlush
+
+      throw new Error "Can't flush inside Tracker.autorun"
 
     inFlush = true
     willFlush = true
