@@ -182,11 +182,12 @@ class Tracker.Computation
 
   _compute: ->
     @invalidated = false
+    previousInCompute = inCompute
     inCompute = true
     try
       @_func @
     finally
-      inCompute = false
+      inCompute = previousInCompute
 
   _recompute: ->
     @_recomputing = true
