@@ -71,7 +71,7 @@ _.extend Tracker,
     throwFirstError = !!_options?._throwFirstError
 
     try
-      while not _.isEmpty(queue._taskHandles) or afterFlushCallbacks.length
+      while not queue._taskHandles.isEmpty() or afterFlushCallbacks.length
         queue.drain()
 
         if afterFlushCallbacks.length
