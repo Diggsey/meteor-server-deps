@@ -79,8 +79,10 @@ _.extend Tracker,
     throwFirstError = !!_options?._throwFirstError
 
     # XXX COMPAT WITH METEOR 1.0.3.2
-    isQueueEmpty = queue._taskHandles.isEmpty
-    isQueueEmpty = (-> _.isEmpty(queue._taskHandles)) unless isQueueEmpty
+    if queue._taskHandles.isEmpty
+      isQueueEmpty = -> queue._taskHandles.isEmpty.call queue._taskHandles
+    else
+      isQueueEmpty = -> _.isEmpty(queue._taskHandles)
 
     try
       while not isQueueEmpty() or afterFlushCallbacks.length
