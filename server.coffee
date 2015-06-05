@@ -52,16 +52,24 @@ _.extend Tracker,
 
   flush: (_options) ->
     if inFlush or queue._draining
-      # We ignore flushes which come from requireFlush if they
-      # are while some other flush is in progress.
+      # We ignore flushes which come from requireFlush if they are while some other flush
+      # is in progress. It is safe to just return here, as in this case we are still inside
+      # the main flush loop at least in some fiber. So any flush requests will still be
+      # handled by that loop.
       return if _options?._requireFlush
 
       throw new Error "Can't call Tracker.flush while flushing"
 
     if inCompute or not queue.safeToRunTask()
-      # We ignore flushes which come from requireFlush if they
-      # are while some other flush is in progress.
-      return if _options?._requireFlush
+      # We ignore flushes which come from requireFlush if they are while some other flush
+      # is in progress. In this case we cannot simply return as no fiber is actually running
+      # the main flush loop (if it was, then inFlush would be true and the above code block
+      # would run). We must defer the flush function to be retried as otherwise this will
+      # leave willFlush at true and will thus block all future flushes.
+      if _options?._requireFlush
+        Meteor.defer ->
+          Tracker.flush _options
+        return
 
       throw new Error "Can't flush inside Tracker.autorun"
 

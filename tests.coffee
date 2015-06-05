@@ -102,3 +102,25 @@ Tinytest.add "tracker - local queries", (test) ->
   finally
     for computation in computations
       computation.stop()
+
+if Meteor.isServer
+  Tinytest.add "tracker - flush with fibers", (test) ->
+    # Register an afterFlush callback. This will call defer and schedule a flush to
+    # be executed once the current fiber yields.
+    afterFlushHasExecuted = false
+    Tracker.afterFlush ->
+      afterFlushHasExecuted = true
+
+    # Create a new computation in this fiber. This will cause the global inCompute
+    # to be set to true.
+    Tracker.autorun ->
+      # Inside the computation, we yield so other fibers may run. This will cause the
+      # deferred flush to execute.
+      Meteor._sleepForMs 500
+
+    # Now we are outside any computations. If everything works correctly, doing another
+    # yield here should properly execute the flush and thus the afterFlush callback.
+    Meteor._sleepForMs 500
+
+    # If everything worked, afterFlush has executed.
+    test.isTrue afterFlushHasExecuted
