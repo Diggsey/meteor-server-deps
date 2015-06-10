@@ -8,6 +8,7 @@ Package.describe({
 Package.on_use(function (api) {
   api.versionsFrom('METEOR@1.0.2.1');
   api.use(['coffeescript', 'underscore', 'tracker'], 'server');
+  api.use(['peerlibrary:assert@0.2.5'], 'server');
 
   api.add_files([
     'server.coffee'

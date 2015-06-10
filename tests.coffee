@@ -111,8 +111,8 @@ if Meteor.isServer
     Tracker.afterFlush ->
       afterFlushHasExecuted = true
 
-    # Create a new computation in this fiber. This will cause the global inCompute
-    # to be set to true.
+    # Create a new computation in this fiber. This will cause the global outstandingComputations
+    # to be incremented.
     Tracker.autorun ->
       # Inside the computation, we yield so other fibers may run. This will cause the
       # deferred flush to execute.
@@ -120,6 +120,43 @@ if Meteor.isServer
 
     # Now we are outside any computations. If everything works correctly, doing another
     # yield here should properly execute the flush and thus the afterFlush callback.
+    Meteor._sleepForMs 500
+
+    # If everything worked, afterFlush has executed.
+    test.isTrue afterFlushHasExecuted
+
+  Tinytest.add "tracker - parallel computations with fibers", (test) ->
+    # Spawn some fibers.
+    Fiber = Npm.require 'fibers'
+    Future = Npm.require 'fibers/future'
+    # The first fiber runs a computation and yields for 100 ms while in computation.
+    futureA = new Future()
+    fiberA = Fiber ->
+      Tracker.autorun ->
+        Meteor._sleepForMs 100
+
+      futureA.return()
+    fiberA.run()
+    # The second fiber runs a computation and yields for 200 ms while in computation.
+    futureB = new Future()
+    fiberB = Fiber ->
+      Tracker.autorun ->
+        Meteor._sleepForMs 200
+      futureB.return()
+    fiberB.run()
+
+    # Wait for both fibers to finish. If handled incorrectly, this could cause computation
+    # state corruption, causing the any later flushes to never run.
+    futureA.wait()
+    futureB.wait()
+
+    # Register an afterFlush callback. This will call defer and schedule a flush to
+    # be executed once the current fiber yields.
+    afterFlushHasExecuted = false
+    Tracker.afterFlush ->
+      afterFlushHasExecuted = true
+
+    # We yield the current fiber and the afterFlush must run.
     Meteor._sleepForMs 500
 
     # If everything worked, afterFlush has executed.

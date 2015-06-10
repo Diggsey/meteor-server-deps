@@ -6,7 +6,7 @@ privateObject = {}
 nextId = 1
 willFlush = false
 inFlush = false
-inCompute = false
+outstandingComputations = 0
 firstError = false
 throwFirstError = false
 queue = new Meteor._SynchronousQueue()
@@ -60,7 +60,7 @@ _.extend Tracker,
 
       throw new Error "Can't call Tracker.flush while flushing"
 
-    if inCompute or not queue.safeToRunTask()
+    if outstandingComputations > 0 or not queue.safeToRunTask()
       # We ignore flushes which come from requireFlush if they are while some other flush
       # is in progress. In this case we cannot simply return as no fiber is actually running
       # the main flush loop (if it was, then inFlush would be true and the above code block
@@ -196,12 +196,12 @@ class Tracker.Computation
 
   _compute: ->
     @invalidated = false
-    previousInCompute = inCompute
-    inCompute = true
+    outstandingComputations++
     try
       @_func @
     finally
-      inCompute = previousInCompute
+      outstandingComputations--
+      assert outstandingComputations >= 0
 
   _recompute: ->
     @_recomputing = true
