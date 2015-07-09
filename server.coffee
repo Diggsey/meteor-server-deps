@@ -180,7 +180,7 @@ class Tracker.Computation
       if not @_recomputing and not @stopped
         requireFlush()
         queue.queueTask =>
-          @_recompute()
+          @_recompute() unless @_recomputing
 
       @invalidated = true
 
@@ -206,9 +206,11 @@ class Tracker.Computation
   _recompute: ->
     assert not @_recomputing
     @_recomputing = true
-    while @invalidated and not @stopped
-      @_compute()
-    @_recomputing = false
+    try
+      while @invalidated and not @stopped
+        @_compute()
+    finally
+      @_recomputing = false
 
   flush: ->
     return if @_recomputing
