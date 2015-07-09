@@ -5,21 +5,47 @@ Package.describe({
   git: 'https://github.com/peerlibrary/meteor-server-autorun.git'
 });
 
-Package.on_use(function (api) {
-  api.versionsFrom('METEOR@1.0.2.1');
-  api.use(['coffeescript', 'underscore', 'tracker'], 'server');
-  api.use(['peerlibrary:assert@0.2.5'], 'server');
+Package.onUse(function (api) {
+  api.versionsFrom('1.0.3.1');
 
-  api.add_files([
+  // Core dependencies.
+  api.use([
+    'coffeescript',
+    'underscore',
+    'tracker'
+  ]);
+
+  // 3rd party dependencies.
+  api.use([
+    'peerlibrary:assert@0.2.5'
+  ], 'server');
+
+  api.addFiles([
+    'client.coffee'
+  ], 'client');
+
+  api.addFiles([
     'server.coffee'
   ], 'server');
 });
 
-Package.on_test(function (api) {
-  api.use(['peerlibrary:server-autorun', 'tinytest', 'test-helpers', 'coffeescript', 'mongo', 'reactive-var'], ['client', 'server']);
+Package.onTest(function (api) {
+  // Core dependencies.
+  api.use([
+    'tinytest',
+    'test-helpers',
+    'coffeescript',
+    'mongo',
+    'reactive-var'
+  ]);
 
-  api.add_files([
+  // Internal dependencies.
+  api.use([
+    'peerlibrary:server-autorun'
+  ]);
+
+  api.addFiles([
     'meteor/packages/tracker/tracker_tests.js',
     'tests.coffee'
-  ], ['client', 'server']);
+  ]);
 });

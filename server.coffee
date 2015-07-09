@@ -204,10 +204,16 @@ class Tracker.Computation
       assert outstandingComputations >= 0
 
   _recompute: ->
+    assert not @_recomputing
     @_recomputing = true
     while @invalidated and not @stopped
       @_compute()
     @_recomputing = false
+
+  flush: ->
+    return if @_recomputing
+
+    @_recompute()
 
 class Tracker.Dependency
   constructor: ->
