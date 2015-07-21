@@ -149,6 +149,7 @@ class Tracker.Computation
     @firstRun = true
     @_id = nextId++
     @_onInvalidateCallbacks = []
+    @_onStopCallbacks = []
     @_recomputing = false
 
     onException = (error) =>
@@ -189,10 +190,24 @@ class Tracker.Computation
           callback @
       @_onInvalidateCallbacks = []
 
+  onStop: (f) ->
+    throw new Error "onStop requires a function" unless typeof f is 'function'
+
+    if @stopped
+      Tracker.nonreactive =>
+        f @
+    else
+      @_onStopCallbacks.push f
+
   stop: ->
     if not @stopped
       @stopped = true
       @invalidate()
+
+      for callback in @_onStopCallbacks
+        Tracker.nonreactive =>
+          callback @
+      @_onStopCallbacks = []
 
   _compute: ->
     @invalidated = false
