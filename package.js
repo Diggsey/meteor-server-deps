@@ -1,11 +1,54 @@
 Package.describe({
-  summary: "Enable server-side reactivity"
+  summary: "Server-side Tracker.autorun",
+  version: '0.3.1',
+  name: 'peerlibrary:server-autorun',
+  git: 'https://github.com/peerlibrary/meteor-server-autorun.git'
 });
 
-Package.on_use(function(api) {
-  api.use('coffeescript', ['server']);
-  api.use('deps', ['server']);
-  api.use('underscore', ['server']);
+Package.onUse(function (api) {
+  api.versionsFrom('1.0.3.1');
 
-  api.add_files('lib/server-deps.coffee', ['server']);
+  // Core dependencies.
+  api.use([
+    'coffeescript',
+    'underscore',
+    'tracker'
+  ]);
+
+  // 3rd party dependencies.
+  api.use([
+    'peerlibrary:assert@0.2.5'
+  ], 'server');
+
+  api.addFiles([
+    'client.coffee'
+  ], 'client');
+
+  api.addFiles([
+    'server.coffee'
+  ], 'server');
+});
+
+Package.onTest(function (api) {
+  // Core dependencies.
+  api.use([
+    'tinytest',
+    'test-helpers',
+    'coffeescript',
+    'mongo',
+    'reactive-var',
+    'minimongo',
+    'underscore'
+  ]);
+
+  // Internal dependencies.
+  api.use([
+    'peerlibrary:server-autorun'
+  ]);
+
+  api.addFiles([
+    'meteor/packages/tracker/tracker_tests.js',
+    'meteor/packages/minimongo/minimongo_tests.js',
+    'tests.coffee'
+  ]);
 });
