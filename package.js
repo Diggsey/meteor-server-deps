@@ -36,7 +36,9 @@ Package.onTest(function (api) {
     'test-helpers',
     'coffeescript',
     'mongo',
-    'reactive-var'
+    'reactive-var',
+    'minimongo',
+    'underscore'
   ]);
 
   // Internal dependencies.
@@ -46,6 +48,7 @@ Package.onTest(function (api) {
 
   api.addFiles([
     'meteor/packages/tracker/tracker_tests.js',
+    'meteor/packages/minimongo/minimongo_tests.js',
     'tests.coffee'
   ]);
 });

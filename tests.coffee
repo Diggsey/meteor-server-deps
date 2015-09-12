@@ -27,6 +27,109 @@ Tinytest.add "tracker - reactive variable", (test) ->
   finally
     computation.stop()
 
+# To test if afterFlush callbacks are run in the same order on the client and server.
+Tinytest.add "tracker - invalidations inside autorun", (test) ->
+  try
+    computation = null
+    variable = new ReactiveVar 0
+
+    runs = []
+
+    Tracker.afterFlush ->
+      runs.push 'flush1'
+
+    computation = Tracker.autorun ->
+      Tracker.afterFlush ->
+        runs.push 'flush-before'
+
+      runs.push variable.get()
+      variable.set variable.get() + 1 if variable.get() < 3
+
+      Tracker.afterFlush ->
+        runs.push 'flush-after'
+
+    Tracker.afterFlush ->
+      runs.push 'flush2'
+
+    variable.set 1
+    Tracker.flush()
+
+    Tracker.afterFlush ->
+      runs.push 'flush3'
+
+    variable.set 1
+    Tracker.flush()
+
+    Tracker.afterFlush ->
+      runs.push 'flush4'
+
+    variable.set 2
+    Tracker.flush()
+
+    test.equal runs, [0, 1, 2, 3, 'flush1', 'flush-before', 'flush-after', 'flush2', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 1, 2, 3, 'flush3', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 2, 3, 'flush4', 'flush-before', 'flush-after', 'flush-before', 'flush-after']
+
+  finally
+    computation.stop()
+
+if Meteor.isServer
+  # Should be the same order as above, just that we are adding some yields.
+  Tinytest.add "tracker - invalidations inside autorun with yields", (test) ->
+    try
+      computation = null
+      variable = new ReactiveVar 0
+
+      runs = []
+
+      Tracker.afterFlush ->
+        runs.push 'flush1'
+
+      computation = Tracker.autorun ->
+        Tracker.afterFlush ->
+          runs.push 'flush-before'
+
+        runs.push variable.get()
+
+        Meteor._sleepForMs 1
+
+        variable.set variable.get() + 1 if variable.get() < 3
+
+        Meteor._sleepForMs 1
+
+        Tracker.afterFlush ->
+          runs.push 'flush-after'
+
+      Tracker.afterFlush ->
+        runs.push 'flush2'
+
+      variable.set 1
+
+      Meteor._sleepForMs 1
+
+      Tracker.flush()
+
+      Tracker.afterFlush ->
+        runs.push 'flush3'
+
+      variable.set 1
+
+      Meteor._sleepForMs 1
+
+      Tracker.flush()
+
+      Tracker.afterFlush ->
+        runs.push 'flush4'
+
+      variable.set 2
+
+      Meteor._sleepForMs 1
+
+      Tracker.flush()
+
+      test.equal runs, [0, 1, 2, 3, 'flush1', 'flush-before', 'flush-after', 'flush2', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 1, 2, 3, 'flush3', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 'flush-before', 'flush-after', 2, 3, 'flush4', 'flush-before', 'flush-after', 'flush-before', 'flush-after']
+
+    finally
+      computation.stop()
+
 Tinytest.add "tracker - queries", (test) ->
   collection.remove {}
 
